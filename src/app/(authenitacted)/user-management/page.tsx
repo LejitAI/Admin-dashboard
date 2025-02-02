@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useUsers } from "@/hooks/useUsers";
 import {
   type ColumnDef,
   flexRender,
@@ -11,8 +12,7 @@ import {
   type SortingState,
   getSortedRowModel,
 } from "@tanstack/react-table";
-import { User, MoreHorizontal, UserPlus } from "lucide-react";
-
+import { UserPlus, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -41,48 +41,19 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton component
 
-type UserStatus = "active" | "suspended" | "inactive";
-
-interface User {
-  id: string;
-  name: string;
+export interface User {
+  _id: string;
+  role: "law_firm" | "corporate" | "admin";
+  username: string;
   email: string;
-  status: UserStatus;
-  lastLogin: string;
+  status: "active" | "suspended" | "inactive";
+  law_firm_name?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-const data: User[] = [
-  {
-    id: "1",
-    name: "John Doe",
-    email: "john@example.com",
-    status: "active",
-    lastLogin: "2023-04-23 14:32",
-  },
-  {
-    id: "1",
-    name: "Mathew Doe",
-    email: "john@example.com",
-    status: "active",
-    lastLogin: "2023-04-23 14:32",
-  },
-  {
-    id: "1",
-    name: "John Doe",
-    email: "john@example.com",
-    status: "inactive",
-    lastLogin: "2023-04-23 14:32",
-  },
-  {
-    id: "1",
-    name: "John Doe",
-    email: "john@example.com",
-    status: "suspended",
-    lastLogin: "2023-04-23 14:32",
-  },
-  // Add more mock data here
-];
 const getStatusClasses = (status: string) => {
   switch (status) {
     case "active":
@@ -98,7 +69,7 @@ const getStatusClasses = (status: string) => {
 
 const columns: ColumnDef<User>[] = [
   {
-    accessorKey: "name",
+    accessorKey: "username",
     header: "Name",
   },
   {
@@ -106,10 +77,14 @@ const columns: ColumnDef<User>[] = [
     header: "Email",
   },
   {
+    accessorKey: "role",
+    header: "Role",
+  },
+  {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
-      const status = row.getValue("status") as UserStatus;
+      const status = row.getValue("status") as User["status"];
       return (
         <Badge
           className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${getStatusClasses(
@@ -122,8 +97,8 @@ const columns: ColumnDef<User>[] = [
     },
   },
   {
-    accessorKey: "lastLogin",
-    header: "Last Login",
+    accessorKey: "createdAt",
+    header: "Created At",
   },
   {
     id: "actions",
@@ -140,7 +115,7 @@ const columns: ColumnDef<User>[] = [
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem>
-              <Link href={`/user-management/${user.id}`}>View Details</Link>
+              <Link href={`/user-management/${user._id}`}>View Details</Link>
             </DropdownMenuItem>
             <DropdownMenuItem>Edit User</DropdownMenuItem>
             <DropdownMenuItem>Suspend User</DropdownMenuItem>
@@ -157,9 +132,15 @@ const columns: ColumnDef<User>[] = [
 export default function UserManagementPage() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [page, setPage] = useState(1);
+
+  // Fetch users from API
+  const { data, isLoading, error } = useUsers(page);
+
+  const users = data?.users || [];
 
   const table = useReactTable({
-    data,
+    data: users,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -171,15 +152,12 @@ export default function UserManagementPage() {
   });
 
   return (
-    <div
-      className=" w-full h-full bg-white py-10 p-4 border-2 rounded border-dashed border-gray-200
-    "
-    >
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">User Management</h1>
+    <div className="w-full h-full bg-white p-6 rounded-lg shadow-sm">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
         <Dialog open={showAddUserModal} onOpenChange={setShowAddUserModal}>
           <DialogTrigger asChild>
-            <Button className="rounded-lg">
+            <Button className="rounded-lg bg-blue-600 hover:bg-blue-700">
               <UserPlus className="mr-2 h-4 w-4" />
               Add New User
             </Button>
@@ -194,9 +172,7 @@ export default function UserManagementPage() {
             </DialogHeader>
 
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="">
-                Name
-              </Label>
+              <Label htmlFor="name">Name</Label>
               <Input id="name" className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -210,14 +186,32 @@ export default function UserManagementPage() {
           </DialogContent>
         </Dialog>
       </div>
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
+
+      {isLoading ? (
+        // Skeleton Loading State
+        <div className="space-y-4">
+          {Array.from({ length: 9 }).map((_, index) => (
+            <div key={index} className="flex items-center space-x-4">
+              <Skeleton className="h-12 w-12 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : error ? (
+        <p className="text-center py-4 text-red-500">
+          Error fetching users: {error.message}
+        </p>
+      ) : (
+        <div className="rounded-md border shadow-sm">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id} className="bg-gray-50">
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -225,55 +219,53 @@ export default function UserManagementPage() {
                             header.getContext()
                           )}
                     </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
                   ))}
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center"
+                  >
+                    No users found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
       <div className="flex items-center justify-end space-x-2 py-4">
         <Button
           variant="outline"
           size="sm"
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
+          onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+          disabled={data?.currentPage === 1}
         >
           Previous
         </Button>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
+          onClick={() => setPage((prev) => prev + 1)}
+          disabled={(data?.currentPage ?? 1) >= (data?.totalPages ?? 1)}
         >
           Next
         </Button>

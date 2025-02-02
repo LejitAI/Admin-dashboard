@@ -82,7 +82,7 @@ import { ColumnDef } from "@tanstack/react-table";
 
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { LawFirm } from "@/types/firms";
+import { LawFirm } from "@/types/lawFirms";
 
 const columns: ColumnDef<LawFirm>[] = [
   {

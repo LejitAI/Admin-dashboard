@@ -140,7 +140,7 @@ export default function LawFirmDetailsPage({
 // user-columns.tsx
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import { LawFirm } from "@/types/firms";
+import { LawFirm } from "@/types/lawFirms";
 import { User } from "@/types/user";
 
 const userColumns: ColumnDef<User>[] = [
