@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { useState } from "react";
-
+import { Toaster } from "sonner";
 export default function AuthenticatedLayout({
   children,
 }: {
@@ -21,6 +21,7 @@ export default function AuthenticatedLayout({
             <Topbar />
             <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
               {children}
+              <Toaster position="bottom-right" />
             </main>
           </div>
         </div>

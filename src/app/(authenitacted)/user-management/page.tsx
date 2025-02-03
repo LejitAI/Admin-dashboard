@@ -12,7 +12,7 @@ import {
   type SortingState,
   getSortedRowModel,
 } from "@tanstack/react-table";
-import { UserPlus, MoreHorizontal } from "lucide-react";
+import { UserPlus, MoreHorizontal, LucideIcon, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,30 +29,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useCreateUser } from "@/hooks/useUsers";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton component
-
-export interface User {
-  _id: string;
-  role: "law_firm" | "corporate" | "admin";
-  username: string;
-  email: string;
-  status: "active" | "suspended" | "inactive";
-  law_firm_name?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { DeleteUserDialog } from "@/components/users/DeleteUserConfirmation";
+import { AddUserDialog } from "@/components/users/AddUserModal";
+import { ChangeUserStatusDialog } from "@/components/users/SuspendUserModal";
+import { User } from "@/types/user";
+import { Shield, Briefcase, UserCheck } from "lucide-react";
 
 const getStatusClasses = (status: string) => {
   switch (status) {
@@ -76,9 +60,58 @@ const columns: ColumnDef<User>[] = [
     accessorKey: "email",
     header: "Email",
   },
+
   {
     accessorKey: "role",
     header: "Role",
+    cell: ({ row }) => {
+      const role = row.getValue("role") as User["role"];
+      let label = "";
+      let Icon: LucideIcon | null = null;
+      let bgColor = "";
+      let borderColor = "";
+
+      switch (role) {
+        case "law_firm":
+          label = "Law Firm";
+          Icon = Briefcase;
+          bgColor = "bg-blue-200";
+          borderColor = "border-blue-600";
+          break;
+        case "corporate":
+          label = "Corporate";
+          Icon = Shield;
+          bgColor = "bg-green-200";
+          borderColor = "border-green-600";
+          break;
+        case "admin":
+          label = "Admin";
+          Icon = UserCheck;
+          bgColor = "bg-red-200";
+          borderColor = "border-red-600";
+          break;
+        case "citizen":
+          label = "Citizen";
+          Icon = Users;
+          bgColor = "bg-gray-200";
+          borderColor = "border-gray-600";
+          break;
+        default:
+          label = "Unknown";
+          Icon = Users;
+          bgColor = "bg-gray-300";
+          borderColor = "border-gray-700";
+      }
+
+      return (
+        <Badge
+          className={`flex items-center justify-center w-28 rounded-full border ${bgColor} ${borderColor} text-black px-3 py-1`}
+        >
+          {Icon && <Icon className="mr-2 h-4 w-4" />}
+          {label}
+        </Badge>
+      );
+    },
   },
   {
     accessorKey: "status",
@@ -99,6 +132,23 @@ const columns: ColumnDef<User>[] = [
   {
     accessorKey: "createdAt",
     header: "Created At",
+    cell: ({ row }) => {
+      const createdAt = row.getValue("createdAt") as string; // Ensure it's a string
+      const date = new Date(createdAt);
+      const isValidDate = !isNaN(date.getTime());
+
+      if (!isValidDate) {
+        return <>Not Available</>;
+      }
+
+      const formattedDate = date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+
+      return <span className="font-semibold">{formattedDate}</span>;
+    },
   },
   {
     id: "actions",
@@ -118,9 +168,14 @@ const columns: ColumnDef<User>[] = [
               <Link href={`/user-management/${user._id}`}>View Details</Link>
             </DropdownMenuItem>
             <DropdownMenuItem>Edit User</DropdownMenuItem>
-            <DropdownMenuItem>Suspend User</DropdownMenuItem>
-            <DropdownMenuItem className="text-red-600">
-              Remove User
+            <DropdownMenuItem>
+              <ChangeUserStatusDialog
+                userId={user._id}
+                currentStatus={user.status}
+              />
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <DeleteUserDialog userId={row.original._id} />
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -133,7 +188,7 @@ export default function UserManagementPage() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [page, setPage] = useState(1);
-
+  const createUserMutation = useCreateUser();
   // Fetch users from API
   const { data, isLoading, error } = useUsers(page);
 
@@ -150,41 +205,31 @@ export default function UserManagementPage() {
       sorting,
     },
   });
+  const handleAddUser = (userData: {
+    role: User["role"];
+    username: string;
+    email: string;
+    password: string;
+    confirmPassword: string;
+    law_firm_name?: string;
+  }) => {
+    console.log("Adding user:", userData);
 
+    createUserMutation.mutate(userData, {
+      onSuccess: () => {
+        console.log("User added successfully");
+        // Perform any additional actions on success, e.g., close a modal
+      },
+      onError: (error) => {
+        console.error("Error adding user:", error.message);
+      },
+    });
+  };
   return (
     <div className="w-full h-full bg-white p-6 rounded-lg shadow-sm">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
-        <Dialog open={showAddUserModal} onOpenChange={setShowAddUserModal}>
-          <DialogTrigger asChild>
-            <Button className="rounded-lg bg-blue-600 hover:bg-blue-700">
-              <UserPlus className="mr-2 h-4 w-4" />
-              Add New User
-            </Button>
-          </DialogTrigger>
-
-          <DialogContent className="rounded-lg">
-            <DialogHeader>
-              <DialogTitle>Add New User</DialogTitle>
-              <DialogDescription>
-                Enter the details of the new user below.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" className="col-span-3" />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" className="col-span-3" />
-            </div>
-
-            <DialogFooter>
-              <Button type="submit">Add User</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <AddUserDialog onAddUser={handleAddUser} />
       </div>
 
       {isLoading ? (

@@ -1,6 +1,6 @@
 export interface User {
   _id: string;
-  role: 'law_firm' | 'corporate' | 'admin';
+  role: 'law_firm' | 'corporate' | 'admin'|'citizen';
   username: string;
   email: string;
   status: 'active' | 'suspended' | 'inactive';
