@@ -22,11 +22,29 @@ export const addUsersToLawFirm = async (
 
 export const getLawFirmDetails = async (
   { firmId, token }: { firmId: string } & APIConfig
-): Promise<AxiosResponse<LawFirm>> => {
-  return axios.get(`${BASE_URL}/law-firms/${firmId}`, {
+): Promise<LawFirm> => {
+  try {
+    const response = await axios.get<LawFirm>(`${BASE_URL}/law-firms/${firmId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      error instanceof Error 
+        ? error.message 
+        : 'Failed to fetch law firm details'
+    );
+  }
+};
+export const getAllLawFirms = async ({ token }: APIConfig): Promise<LawFirm[]> => {
+  const response = await axios.get(`http://backend.lejit.ai/backend/api/admin/get-all-law-firms`, {
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json'
     }
   });
+  return response.data;
 };

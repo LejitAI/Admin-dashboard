@@ -1,13 +1,14 @@
 "use client";
-import { useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
+import { useSingleLawFirm } from "@/hooks/useFirms";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardHeader,
   CardTitle,
-  CardContent,
   CardDescription,
 } from "@/components/ui/card";
 import {
@@ -26,81 +27,97 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Users, UserPlus } from "lucide-react";
+import { use } from "react";
 
 export default function LawFirmDetailsPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const [lawFirm, setLawFirm] = useState<LawFirm>({
-    id: params.id,
-    name: "Smith & Associates",
-    address: "123 Law St",
-    contactNumber: "555-0123",
-    trialEndsAt: new Date("2025-02-27"),
-    activePlanEndsAt: new Date("2025-02-27"),
+  const resolvedParams = use(params);
+  const {
+    data: lawFirm,
+    isLoading,
+    error,
+  } = useSingleLawFirm(resolvedParams.id);
 
-    users: [
-      {
-        id: "1",
-        name: "John Doe",
-        email: "john@example.com",
-        role: "admin",
-        trialEndsAt: new Date("2025-02-27"),
-        isActive: true,
-      },
-      {
-        id: "1",
-        name: "John Doe",
-        email: "john@example.com",
-        role: "admin",
-        trialEndsAt: new Date("2025-02-27"),
-        isActive: true,
-      },
-      {
-        id: "1",
-        name: "John Doe",
-        email: "john@example.com",
-        role: "admin",
-        trialEndsAt: new Date("2025-02-27"),
-        isActive: true,
-      },
-      {
-        id: "1",
-        name: "John Doe",
-        email: "john@example.com",
-        role: "admin",
-        trialEndsAt: new Date("2025-02-27"),
-        isActive: true,
-      },
-      // Add more mock users
-    ],
-    createdAt: new Date(),
-  });
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8 space-y-6">
+        <Card className="mb-8">
+          <CardHeader>
+            <Skeleton className="h-8 w-[200px] mb-4" />
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-[300px]" />
+              <Skeleton className="h-4 w-[250px]" />
+              <Skeleton className="h-4 w-[200px]" />
+            </div>
+          </CardHeader>
+        </Card>
+
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-8 w-[100px]" />
+            <Skeleton className="h-10 w-[120px]" />
+          </div>
+          <div className="space-y-2">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>
+          Error loading law firm details: {error.message}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (!lawFirm) return null;
 
   return (
     <div className="container mx-auto py-8">
       <Card className="mb-8">
         <CardHeader>
-          <CardTitle>{lawFirm.name}</CardTitle>
-          <CardDescription>
-            Address: {lawFirm.address}
-            <br />
-            Contact: {lawFirm.contactNumber}
-            <br />
-            Trial Ends:{" "}
-            {lawFirm.trialEndsAt ? lawFirm.trialEndsAt.toDateString() : "N/A"}
-            <br />
-            Active Plan Ends:{" "}
-            {lawFirm.activePlanEndsAt
-              ? lawFirm.activePlanEndsAt.toDateString()
-              : "N/A"}
+          <CardTitle>{lawFirm.lawFirmDetails.lawFirmName}</CardTitle>
+          <CardDescription className="space-y-2">
+            <p>
+              <span className="font-semibold">Address:</span>{" "}
+              {`${lawFirm.lawFirmDetails.contactInfo.address.line1}, 
+                ${lawFirm.lawFirmDetails.contactInfo.address.city}, 
+                ${lawFirm.lawFirmDetails.contactInfo.address.state}`}
+            </p>
+            <p>
+              <span className="font-semibold">Contact:</span>{" "}
+              {lawFirm.lawFirmDetails.contactInfo.mobile}
+            </p>
+            <p>
+              <span className="font-semibold">Email:</span>{" "}
+              {lawFirm.lawFirmDetails.contactInfo.email}
+            </p>
+            <p>
+              <span className="font-semibold">Specialization:</span>{" "}
+              {lawFirm.lawFirmDetails.specialization}
+            </p>
+            <p>
+              <span className="font-semibold">Operating Since:</span>{" "}
+              {lawFirm.lawFirmDetails.operatingSince}
+            </p>
           </CardDescription>
         </CardHeader>
       </Card>
 
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold">Users</h2>
+        <h2 className="text-2xl font-semibold">
+          Users ({lawFirm.users?.length || 0})
+        </h2>
         <Dialog>
           <DialogTrigger asChild>
             <Button>
@@ -132,57 +149,7 @@ export default function LawFirmDetailsPage({
         </Dialog>
       </div>
 
-      <DataTable columns={userColumns} data={lawFirm.users} />
+      {/* <DataTable columns={userColumns} data={lawFirm.users} /> */}
     </div>
   );
 }
-
-// user-columns.tsx
-import { ColumnDef } from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
-import { LawFirm } from "@/types/lawFirms";
-import { User } from "@/types/user";
-
-const userColumns: ColumnDef<User>[] = [
-  {
-    accessorKey: "name",
-    header: "Name",
-  },
-  {
-    accessorKey: "email",
-    header: "Email",
-  },
-  {
-    accessorKey: "role",
-    header: "Role",
-    cell: ({ row }) => (
-      <Badge variant={row.original.role === "admin" ? "default" : "secondary"}>
-        {row.original.role}
-      </Badge>
-    ),
-  },
-  {
-    accessorKey: "trialEndsAt",
-    header: "Trial Ends",
-    cell: ({ row }) => {
-      const daysLeft = Math.ceil(
-        (row.original.trialEndsAt.getTime() - new Date().getTime()) /
-          (1000 * 60 * 60 * 24)
-      );
-      return (
-        <Badge variant={daysLeft <= 5 ? "destructive" : "default"}>
-          {daysLeft} days left
-        </Badge>
-      );
-    },
-  },
-  {
-    accessorKey: "isActive",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={row.original.isActive ? "outline" : "destructive"}>
-        {row.original.isActive ? "Active" : "Inactive"}
-      </Badge>
-    ),
-  },
-];
